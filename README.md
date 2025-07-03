@@ -53,7 +53,7 @@ Can be only used for specific experimental designs performed by Loot et al.
 
 <br />
 
-The dataset used in the *nextflow.config* file, as an example, is available at https://zenodo.org/records/14509916/files/ig_clustering_test_1_VH.zip.
+The dataset used in the *nextflow.config* file, as an example, is available at https://zenodo.org/records/15798125/files/W621.hifi_reads.bam.
 
 
 <br /><br />
@@ -69,9 +69,6 @@ Installation of:<br />
 
 Optional installation (to avoid reccurent message) of:<br />
 [Gocryptfs](https://github.com/rfjakob/gocryptfs), `sudo apt install gocryptfs` for Linux ubuntu.<br /> 
-
-Itol key:<br />
-You must freely register at https://itol.embl.de/itol_account.cgi to get your own itol key. Once registered, go to https://itol.embl.de/userInfo.cgi and click on the Toggle API access button. Then, add the key in the `phylo_tree_itolkey` parameter of the *nextflow.config* file.
 
 <br />
 
