@@ -1,0 +1,137 @@
+---
+title: '19583_loot Report'
+date: '`r Sys.Date()`'
+output:
+    html_document:
+    toc: TRUE
+    toc_float: TRUE
+params:
+  nb_input: -1
+---
+
+\n\n<br /><br />\n\n
+
+
+
+
+[comment]: <> (The following script is used to be able to zoom on images)
+
+<script>
+  function toggleFullscreen(img) {
+    if (img.classList.contains('fullscreen')) {
+      img.classList.remove('fullscreen');
+    } else {
+      document.querySelectorAll('.fullscreen').forEach(el => el.classList.remove('fullscreen'));
+      img.classList.add('fullscreen');
+    }
+  }
+</script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Images cliquables</title>
+    <style>
+        .image-container {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+        }
+        .image-container img {
+            width: 33%;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: contain;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            transform: scale(1);
+        }
+    </style>
+</head>
+
+[comment]: <> (End of script to zoom on images)
+
+[comment]: <> (The following script is meant to display the tsvs in a readable way)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(knitr)
+
+read_tsv_with_dummy <- function(file_path) {
+  if (file.info(file_path)$size == 0) {
+    return("File is empty")
+  } else {
+    df <- read_tsv(file_path, show_col_types = FALSE)
+    truncated <- FALSE
+    # If the file is empty but has column names, add an empty line to make the column names readable
+    if (nrow(df) == 0) {
+      dummy_row <- as.data.frame(matrix("", nrow = 1, ncol = ncol(df)))
+      colnames(dummy_row) <- colnames(df)
+      df <- rbind(df, dummy_row)
+    }else if (nrow(df) > 10) {
+      df <- df[1:10, ]
+      truncated <- TRUE
+    }
+    attr(df, "truncated") <- truncated
+    return(df)
+  }
+}
+```
+
+<style>
+details.inline {display:inline-block;}
+</style>
+
+[comment]: <> (End tsv display)
+
+
+
+### Initial dataset
+
+Number of initial input sequences : ```r params$nb_input```
+
+<br><br>
+
+### MultiQC
+
+Results are published in the [Report](./reports/multiqc_report.html) folder
+
+<br><br>
+
+###  Backup
+
+
+See the [reports](./reports) folder for all the details of the analysis, including the parameters used in the .config file.
+```{r include = FALSE}
+#remove work directory from current directory
+wd <- getwd()
+parts <- unlist(strsplit(wd, "/"))
+path <- paste(parts[1:(length(parts) - 3)], collapse = "/")
+path <- paste0(path, "/")
+```
+Warning: the full .nextflow.log is in: ```r path```. Indeed, the one in the [reports](./reports) folder is not complete (miss the end).
+
+
+<br /><br />
+
+<style>
+  #TOC { max-width: 200px !important;}
+  /* .tocify-item { font-size: 100% !important; } */
+</style>
+
+<style> 
+  body .container, body .container-fluid { max-width: 90% !important; width: 100% !important; margin: 0 auto;  } 
+</style>
+
+<style>
+  .toc-content.col-xs-12.col-sm-8.col-md-9 { margin-left: 10px !important; padding-left: 0 !important; } 
+</style>
+
+<style> /* Force a fixated width, float left and add space on the right */ .col-xs-12.col-sm-4.col-md-3 { width: 250px !important; float: left; margin-right: 20px; /* reduce interior margin */ padding: 5px; } </style>
