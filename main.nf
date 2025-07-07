@@ -97,13 +97,13 @@ process Unzip {
 
 process bam2fastq{
     label "bioconvert"
-    publishDir "${out_path}/reports", mode: 'copy', pattern: "bam2fastq.log", overwrite: false
 
     input:
     path bam_ch // parallelization expected
 
     output:
     path "*.fastq", emit: fastq_ch
+    path "*.log", emit: bam2fastq_log_ch, optional: true
 
     script:
     """
@@ -111,6 +111,7 @@ process bam2fastq{
     FILENAME_INI=\$(basename -- "${bam_ch}")
     FILE_EXTENSION="\${FILENAME_INI##*.}"
     FILENAME="\${FILENAME_INI%.*}"
+    echo -e "\n\n================\n\n\${FILENAME}\n\n================\n\n" > bam2fastq.log
     bioconvert \${FILENAME}.bam \${FILENAME}.fastq |& tee -a bam2fastq.log
     """
 }
@@ -121,67 +122,66 @@ process Nremove { // remove the reads made of N only. See section 8.3 of the lab
     cache 'true'
 
     input:
-    val file_name
-    path gz from fastq_ch
+    path fastq_ch // parallelization expected
 
     output:
-    path "${file_name}_Nremove.gz", emit: fastq_Nremove_ch
-    path "report.rmd", emit: log_ch1
+    path "*_Nremove.fastq", emit: fastq_Nremove_ch
+    path "Nremove.log", emit: Nremove_log_ch, optional: true
 
     script:
     """
-    Nremove.sh ${gz} "${file_name}_Nremove.gz" "report.rmd"
+    #!/bin/bash -ue
+    echo -e "\n\n================\n\n${fastq_ch.baseName}\n\n================\n\n" > Nremove.log
+    Nremove.sh ${fastq_ch} "${fastq_ch.baseName}_Nremove.fastq" Nremove.log
     """
 }
-
 
 
 process kraken {
     label 'kraken'
+    cache 'true'
 
     input:
-    path fastq from fastq_trim_ch3
-    if(system_exec == 'slurm'){
-        val k2db
-    }
+    path fastq_Nremove_ch // parallelization expected
+    path kraken_db
 
     output:
-    path "${fastq.baseName}_kraken_std.txt", emit: krakenreports
+    path(['*.kraken2', 'NULL']), emit: kraken_ch, optional: true
+    path "kraken.log", emit: kraken_log_ch, optional: true
 
     script:
-    if(system_exec == 'slurm')
-        """
-        kraken2 --db ${k2db} --threads ${task.cpus} --report ${fastq.baseName}_kraken_std.txt ${fastq} > ${fastq.baseName}.kraken2
-        """
+    """
+    #!/bin/bash -ue
+    echo -e "\n\n================\n\n${fastq_Nremove_ch.baseName}\n\n================\n\n" > kraken.log
+    if [[ ${system_exec} != "local" ]] ; then
+        kraken2 --db ${kraken_db} --threads ${task.cpus} --report kraken.log > ${fastq_Nremove_ch.baseName}.kraken2
     else
-        """
-        echo "No kraken analysis performed in local running" > ${fastq.baseName}_kraken_std.txt
-        """
+        echo -e "\nNo kraken analysis performed in local running\n" > kraken.log
+        echo "" > NULL
+    fi
+    """
 }
 
 
 process fastqc1 { // section 8.5 of the labbook 20200520
-    label 'fastqc' // see the withLabel: bash in the nextflow config file 
+    label 'fastqc'
     publishDir "${out_path}/fastQC1", mode: 'copy', pattern: "*_fastqc.*", overwrite: false // https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
     cache 'true'
 
     input:
-    path fq from fastq_trim_ch1
+    path fastq_Nremove_ch
 
     output:
-    path "${fq.baseName}_fastqc.*"
-    path "report.rmd", emit: log_ch3
+    path "fastqc1.log", emit: fastqc1_log_ch, optional: true
+    path "*_fastqc.*", emit: fastqc1_ch, optional: true
 
     script:
     """
-    echo -e "\\n\\n<br /><br />\\n\\n###  Read QC n°1\\n\\n" > report.rmd
-    echo -e "Results are published in the [fastQC1](./fastQC1) folder\\n\\n" >> report.rmd
-    fastqc ${fq} | tee tempo.txt
-    cat tempo.txt >> report.rmd
+    #!/bin/bash -ue
+    echo -e "\n\n================\n\n${fastq_Nremove_ch.baseName}\n\n================\n\n" > fastqc1.log
+    fastqc ${fastq_Nremove_ch} |& tee -a fastqc1.log
     """
 }
-
-
 
 
 process multiQC{
@@ -190,7 +190,7 @@ process multiQC{
     publishDir "${out_path}/reports", mode: 'copy', pattern: "multiqc.log", overwrite: false
 
     input:
-    path bam_ch // no parallelization expected
+    path fastq_Nremove_ch // no parallelization expected
 
     output:
     path "multiqc_report.html", emit: multiqc_ch
@@ -203,7 +203,7 @@ process multiQC{
 
 process Q20 { // section 24.2 of the labbook 20200707
     label 'samtools' // see the withLabel: bash in the nextflow config file 
-    publishDir "${out_path}/reports", mode: 'copy', pattern: "q20_report.txt", overwrite: false
+    publishDir "${out_path}/reports", mode: 'copy', pattern: "q20.txt", overwrite: false
     // publishDir "${out_path}/files", mode: 'copy', pattern: "${file_name}_q20.bam", overwrite: false // 
     cache 'true'
 
@@ -215,12 +215,12 @@ process Q20 { // section 24.2 of the labbook 20200707
     path "${file_name}_q20_dup.bam", emit: q20_ch1, q20_ch2, q20_ch3, q20_ch4
     path "read_nb_before", emit: bow_read_nb_ch
     path "read_nb_after", emit: q20_read_nb_ch
-    path "q20_report.txt"
+    path "q20.txt"
     path "report.rmd", emit: log_ch11
 
     script:
     """
-    samtools view -q 20 -b ${bam} > ${file_name}_q20_dup.bam |& tee q20_report.txt
+    samtools view -q 20 -b ${bam} > ${file_name}_q20_dup.bam |& tee q20.txt
     samtools index ${file_name}_q20_dup.bam
     echo -e "\\n\\n<br /><br />\\n\\n###  Q20 filtering\\n\\n" > report.rmd
     read_nb_before=\$(samtools view ${bam} | wc -l | cut -f1 -d' ') # -h to add the header
@@ -508,6 +508,13 @@ workflow {
     }else if( ! (file(ref_path).exists()) ){
         error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID ref_path PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${ref_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
     }
+    if("${system_exec}" != "local"){
+        if( ! (kraken_db in String || kraken_db in GString) ){
+            error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db PARAMETER IN nextflow.config FILE:\n${kraken_db}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
+        }else if( ! (file(kraken_db).exists()) ){
+            error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID ref_pkraken_dbath PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${kraken_db}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
+        }
+    }
     if( ! (cute_path in String || cute_path in GString) ){
         error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID cute_path PARAMETER IN nextflow.config FILE:\n${cute_path}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
     }else if( ! (file(cute_path).exists()) ){
@@ -549,11 +556,23 @@ workflow {
 
     //////// end Channels
 
+    //////// Folder creation
+
+    file("${out_path}/fastQC1").mkdirs()
+    file("${out_path}/files").mkdirs()
+
+    //////// end Folder creation
 
     //////// files import
 
     cute_file = file(cute_path) // in variable because a single file
     template_rmd = file(template_rmd_path)
+    if(system_exec != 'local'){
+        kraken_db = file(kraken_db_path)
+    }else{
+        kraken_db = file("NULL_kraken_db")
+    }
+
 
     //////// end files import
 
@@ -578,16 +597,33 @@ workflow {
         modules
     )
 
-    file("${out_path}/files").mkdirs()
-
     bam2fastq(
         bam_ch
     )
+    bam2fastq.out.bam2fastq_log_ch.collectFile(name: "bam2fastq.log").subscribe{it -> it.copyTo("${out_path}/reports")}
+
+    Nremove(
+        bam2fastq.out.fastq_ch
+    )
+    Nremove.out.Nremove_log_ch.collectFile(name: "Nremove.log").subscribe{it -> it.copyTo("${out_path}/reports")}
+
+    kraken(
+        Nremove.out.fastq_Nremove_ch,
+        kraken_db
+    )
+    kraken.out.kraken_log_ch.collectFile(name: "kraken.log").subscribe{it -> it.copyTo("${out_path}/reports")}
+    if(system_exec != 'local'){
+        kraken.out.kraken_ch.collectFile(name: "kraken_report.html").subscribe{it -> it.copyTo("${out_path}/files")}
+    }
+
+    fastqc1(
+        Nremove.out.fastq_Nremove_ch
+    )
+    fastqc1.out.fastqc1_log_ch.collectFile(name: "fastqc1.log").subscribe{it -> it.copyTo("${out_path}/reports")}
 
     multiQC(
-        bam2fastq.out.fastq_ch.collect()
+        fastqc1.out.fastqc1_ch.mix(kraken.out.kraken_ch).collect()
     )
-
 
     print_report(
         template_rmd,

@@ -95,7 +95,7 @@ details.inline {display:inline-block;}
 
 ### Initial dataset
 
-Number of initial input sequences : ```r params$nb_input```
+Number of initial input files : ```r params$nb_input```
 
 <br><br>
 
