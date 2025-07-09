@@ -99,7 +99,8 @@ nextflow run main.nf -c nextflow.config
 with -c to specify the name of the config file used.
 
 <br /><br />
-#### 2.3. *main.nf* file in the public gitlab repository
+
+#### 2.2. *main.nf* file in a public github / gitlab repository
 
 Run the following command from where you want the results:
 
@@ -108,6 +109,7 @@ nextflow run -hub pasteur gmillot/19583_loot -r v1.0.0
 </pre>
 
 <br /><br />
+
 ### 3. Distant running (example with the Pasteur cluster)
 
 #### 3.1. Pre-execution
@@ -115,7 +117,7 @@ nextflow run -hub pasteur gmillot/19583_loot -r v1.0.0
 Copy-paste this after having modified the EXEC_PATH variable:
 
 <pre>
-EXEC_PATH="/pasteur/helix/projects/BioIT/gmillot/19583_loot" # where the bin folder of 19583_loot is located (by default, the same path as for the main.nf file)
+EXEC_PATH=$(pwd) # where the bin folder of 19583_loot is located (by default, the same path as for the main.nf file)
 export CONF_BEFORE=/opt/gensoft/exe # on maestro
 
 export JAVA_CONF=java/13.0.2
@@ -138,6 +140,7 @@ module load ${JAVA_CONF} ${APP_CONF} ${GIT_CONF} ${GRAPHVIZ_CONF} ${GRAALVM_CONF
 </pre>
 
 <br /><br />
+
 #### 3.2. *main.nf* file in a cluster folder
 
 Modify the second line of the code below, and run from where the *main.nf* and *nextflow.config* files are (which has been set thanks to the EXEC_PATH variable above):
@@ -145,12 +148,13 @@ Modify the second line of the code below, and run from where the *main.nf* and *
 <pre>
 HOME_INI=$HOME
 HOME="${HELIXHOME}/19583_loot/" # $HOME changed to allow the creation of .nextflow into /$HELIXHOME/19583_loot/, for instance. See NFX_HOME in the nextflow software script
-nextflow run main.nf -c nextflow.config
+nextflow run main.nf -c nextflow.config # or nextflow run main.nf -c nextflow.config --modules ${MODULES} in order to have all the used module versions recorded into the report file 
 HOME=$HOME_INI
 </pre>
 
 <br /><br />
-#### 3.3. *main.nf* file in the public gitlab repository
+
+#### 3.3. *main.nf* file in a public github / gitlab repository
 
 Modify the first and third lines of the code below, and run (results will be where the EXEC_PATH variable has been set above):
 
@@ -163,6 +167,7 @@ HOME=$HOME_INI
 </pre>
 
 <br /><br />
+
 ### 4. Error messages and solutions
 
 #### Message 1

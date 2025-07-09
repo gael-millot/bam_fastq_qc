@@ -6,7 +6,7 @@ output:
     toc: TRUE
     toc_float: TRUE
 params:
-  nb_input: -1
+  nb_bam_files: -1
 ---
 
 \n\n<br /><br />\n\n
@@ -95,15 +95,107 @@ details.inline {display:inline-block;}
 
 ### Initial dataset
 
-Number of initial input files : ```r params$nb_input```
-
+Number of initial input files: ```r params$nb_bam_files```
 <br><br>
+Number of initial sequences per file:
+<br><details class="inline"><summary style="color: #1a73e8; font-family: Arial, sans-serif; font-size: 1em; font-weight: bold;">view</summary>
+<span style="color:green">*ini_read_nb.tsv file in the [files](./files) folder*</span>
+```{r, echo=FALSE, results='asis'}
+df <- read_tsv_with_dummy("ini_read_nb.tsv")
+if (is.data.frame(df) && attr(df, "truncated")) {
+  cat("\n**(Note: Table truncated to 10 rows. Full file available in the [files](./files) folder.)**\n\n")
+}
+knitr::kable(df, format = "markdown", row.names = FALSE)
+```
+</details>
+<br>
+
+### Reads made of N only
+
+Number of reads made of N only per file:
+<br><details class="inline"><summary style="color: #1a73e8; font-family: Arial, sans-serif; font-size: 1em; font-weight: bold;">view</summary>
+<span style="color:green">*n_remove_read_nb.tsv file in the [files](./files) folder*</span>
+```{r, echo=FALSE, results='asis'}
+df <- read_tsv_with_dummy("n_remove_read_nb.tsv")
+if (is.data.frame(df) && attr(df, "truncated")) {
+  cat("\n**(Note: Table truncated to 10 rows. Full file available in the [files](./files) folder.)**\n\n")
+}
+knitr::kable(df, format = "markdown", row.names = FALSE)
+```
+</details>
+<br>
+
+###  Read QC
+
+
+Results are published in the [fastQC1](./fastQC1) folder.
+<br /><br />
 
 ### MultiQC
 
-Results are published in the [Report](./reports/multiqc_report.html) folder
+Results are published in the [Report](./reports/multiqc_report.html) folder.
 
 <br><br>
+
+<br /><br />
+
+###  Q20 filtering
+
+
+
+
+Number of sequences before Q20 filtering: 3,742
+
+
+
+Number of sequences after Q20 filtering: 2,182
+
+Ratio: 
+0.58
+
+
+
+
+
+<br /><br />
+
+###  Control that no more soft clipping in reads
+
+
+nb of reads with soft clipping (S) in CIGAR: 0
+
+
+total nb of reads: 2,182
+<br /><br />
+
+### Removal of duplicates using the 5\' and 3\' coordinates
+
+
+
+
+Number of sequences before removing duplicates: 2,182
+
+Number of sequences after removing duplicates: 1,660
+
+Ratio: 
+0.76
+
+
+
+
+
+
+<br /><br />
+
+###  Read coverage
+
+
+
+
+
+
+
+
 
 ###  Backup
 

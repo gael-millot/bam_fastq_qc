@@ -58,39 +58,30 @@ process Unzip {
 
     input:
     path zip
-    val sample_path
 
     output:
-    path "*", emit: unzip_ch
+    path "*.bam", emit: unzip_ch
 
     script:
     """
     #!/bin/bash -ue
-    FILENAME_INI=\$(basename -- "${sample_path}")
+    FILENAME_INI=\$(basename -- "${zip}")
     FILE_EXTENSION="\${FILENAME_INI##*.}"
     FILENAME="\${FILENAME_INI%.*}"
     if [[ ! "\${FILE_EXTENSION}" =~ zip ]] ; then
         echo -e "\\n\\n========\\n\\nERROR IN NEXTFLOW EXECUTION\\n\\nTHE FILE EXTENSION MUST BE \\".zip\\" AND NOT \${FILENAME_INI}\\n\\n========\\n\\n"
         exit 1
-    else
-        unzip ${zip}
     fi
-    rm \$FILENAME_INI
-    for file in "\$FILENAME"/*.* ; do
-        # Check if the file is a regular file and not a directory
-        if [ -f "\$file" ] ; then
-            # Check if the file does not match the extensions .fasta or .fa
-            if [[ ! "\$file" =~ \\.(bam)\$ ]] ; then
-                echo -e "\\n\\n========\\n\\nERROR IN NEXTFLOW EXECUTION\\n\\nALL THE UNZIPPED FILE EXTENSION MUST BE bam.\\nHERE A FILE IS:\\n\$file.\\n\\n========\\n\\n"
-                exit 1
-            fi
-        else
-            echo -e "\\n\\n========\\n\\nERROR IN NEXTFLOW EXECUTION\\n\\nTHE UNZIPPED FOLDER MUST CONTAIN ONLY FILES WITH THE FOLLOWING EXTENSION: bam\\n\\n========\\n\\n"
+    TEMPO=\$(unzip -l ${zip} | awk 'NR>3 {print \$4}' | grep -v '^\$') # get the file list in the archive
+    # Check if only files in the archives and no directory
+    for file in "\$TEMPO" ; do
+        if [[ ! "\$file" =~ \\.(bam)\$ ]] ; then
+            echo -e "\\n\\n========\\n\\nERROR IN NEXTFLOW EXECUTION\\n\\nALL THE ELEMENTS IN THE .zip FILE MUST BE .bam FILES ONLY.\\nHERE AN ELEMENT IS:\\n\$file.\\n\\n========\\n\\n"
             exit 1
         fi
     done
-    cp "\$FILENAME"/*.* .
-    rm -r \$FILENAME
+    # end Check if only files in the archives and no directory
+    unzip ${zip} 
     """
 }
 
@@ -126,13 +117,26 @@ process Nremove { // remove the reads made of N only. See section 8.3 of the lab
 
     output:
     path "*_Nremove.fastq", emit: fastq_Nremove_ch
-    path "Nremove.log", emit: Nremove_log_ch, optional: true
+    path "ini_read_nb.tsv", emit: ini_read_nb_ch
+    path "n_remove_read_nb.tsv", emit: n_remove_read_nb_ch
 
     script:
     """
     #!/bin/bash -ue
-    echo -e "\n\n================\n\n${fastq_ch.baseName}\n\n================\n\n" > Nremove.log
-    Nremove.sh ${fastq_ch} "${fastq_ch.baseName}_Nremove.fastq" Nremove.log
+    FILENAME_INI=\$(basename -- "${fastq_ch}")
+    FILE_EXTENSION="\${FILENAME_INI##*.}"
+    FILENAME="\${FILENAME_INI%.*}"
+    awk '{lineKind=(NR-1)%4;}lineKind==0{record=\$0; next}lineKind==1{toGet=!(\$0~/^N*\$/); if(toGet) print record}toGet' ${fastq_ch} > \${FILENAME}_Nremove.fastq
+    # get the bad sequences + 3 other lines of the fastq #see https://stackoverflow.com/questions/11793942/delete-lines-before-and-after-a-match-in-bash-with-sed-or-awk
+    # BEWARE: !/^(N*)\$/ does not work to take the good seq, because the + line will be a good one and will print the 4 corresponding lines
+    LC_NUMERIC="en_US.UTF-8" # this is to have printf working for comma thousand separator
+    line_nb_before=\$(cat ${fastq_ch} | wc -l)
+    line_nb_after=\$(cat \${FILENAME}_Nremove.fastq | wc -l)
+    echo -e "FILE_NAME\\tREADS_NB" > ini_read_nb.tsv
+    echo -e "\${FILENAME_INI}\\t\$(printf "%'d" \$((\${line_nb_before} / 4)))" >> ini_read_nb.tsv
+    echo -e "FILE_NAME\\tREADS_NB\\tRATIO" > n_remove_read_nb.tsv
+    echo -e "\${FILENAME_INI}\\t\$(printf "%'d" \$((\${line_nb_after} / 4)))\\t\$(printf '%.2f\\n' \$(echo \$" \$line_nb_after / \$line_nb_before " | bc -l))" >> n_remove_read_nb.tsv
+    # the number in '%.2f\\n' is the number of decimals
     """
 }
 
@@ -391,7 +395,9 @@ process print_report{
 
     input:
     path template_rmd
-    val nb_input
+    path ini_read_nb
+    path n_remove_read_nb
+    val nb_bam_files
 
     output:
     path "report.html"
@@ -410,7 +416,7 @@ process print_report{
         output_file = "report.html",
         # list of the variables waiting to be replaced in the rmd file :
         params = list(
-            nb_input = ${nb_input}
+            nb_bam_files = ${nb_bam_files}
         ),
         # output_dir = ".",
         # intermediates_dir = "./",
@@ -509,10 +515,10 @@ workflow {
         error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID ref_path PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${ref_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
     }
     if("${system_exec}" != "local"){
-        if( ! (kraken_db in String || kraken_db in GString) ){
-            error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db PARAMETER IN nextflow.config FILE:\n${kraken_db}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
-        }else if( ! (file(kraken_db).exists()) ){
-            error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID ref_pkraken_dbath PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${kraken_db}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
+        if( ! (kraken_db_path in String || kraken_db_path in GString) ){
+            error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db_path PARAMETER IN nextflow.config FILE:\n${kraken_db_path}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
+        }else if( ! (file(kraken_db_path).exists()) ){
+            error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db_path PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${kraken_db_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
         }
     }
     if( ! (cute_path in String || cute_path in GString) ){
@@ -581,8 +587,7 @@ workflow {
 
     if(sample_path =~ /.*\.zip$/){
         Unzip( // warning: it is a process defined above
-            Channel.fromPath(sample_path),
-            sample_path
+            Channel.fromPath(sample_path)
         ) 
         bam_ch = Unzip.out.unzip_ch.flatten()
     }else if(sample_path =~ /^http.*\.bam$/){
@@ -591,7 +596,7 @@ workflow {
         bam_ch = Channel.fromPath("${sample_path}/*.*", checkIfExists: false) // in channel because many files 
     }
     
-    nb_input = bam_ch.count()
+    nb_bam_files = bam_ch.count()
 
     workflowParam(
         modules
@@ -605,7 +610,10 @@ workflow {
     Nremove(
         bam2fastq.out.fastq_ch
     )
-    Nremove.out.Nremove_log_ch.collectFile(name: "Nremove.log").subscribe{it -> it.copyTo("${out_path}/reports")}
+    ini_read_nb_ch2 = Nremove.out.ini_read_nb_ch.collectFile(name: "ini_read_nb.tsv", skip: 1, keepHeader: true)
+    ini_read_nb_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
+    n_remove_read_nb_ch2 = Nremove.out.n_remove_read_nb_ch.collectFile(name: "n_remove_read_nb.tsv", skip: 1, keepHeader: true)
+    n_remove_read_nb_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
 
     kraken(
         Nremove.out.fastq_Nremove_ch,
@@ -626,8 +634,10 @@ workflow {
     )
 
     print_report(
-        template_rmd,
-        nb_input
+        template_rmd, 
+        ini_read_nb_ch2, 
+        n_remove_read_nb_ch2, 
+        nb_bam_files
     )
 
 // bam_ch.collect().ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE distance_hist PROCESS\n\n========\n\n"}
