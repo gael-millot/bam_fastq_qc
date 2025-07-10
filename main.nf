@@ -107,8 +107,27 @@ process bam2fastq{
     """
 }
 
+process fastqc {
+    label 'fastqc'
+    //publishDir "${out_path}/fastQC1", mode: 'copy', pattern: "*_fastqc.*", overwrite: false // https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
+    cache 'true'
 
-process Nremove { // remove the reads made of N only. See section 8.3 of the labbook 20200520
+    input:
+    path fastq // parallelization expected
+
+    output:
+    path "fastqc.log", emit: fastqc_log_ch, optional: true
+    path "*_fastqc.*", emit: fastqc_print_ch, optional: true
+
+    script:
+    """
+    #!/bin/bash -ue
+    echo -e "\n\n================\n\n${fastq.baseName}\n\n================\n\n" > fastqc.log
+    fastqc ${fastq} |& tee -a fastqc.log
+    """
+}
+
+process Nremove { // remove the reads made of N only.
     label 'bash' // see the withLabel: bash in the nextflow config file 
     cache 'true'
 
@@ -157,36 +176,14 @@ process kraken {
     """
     #!/bin/bash -ue
     echo -e "\n\n================\n\n${fastq_Nremove_ch.baseName}\n\n================\n\n" > kraken.log
-    if [[ ${system_exec} != "local" ]] ; then
-        kraken2 --db ${kraken_db} --threads ${task.cpus} --report kraken.log > ${fastq_Nremove_ch.baseName}.kraken2
+    if [[ "\$(nproc)" -gt 10 ]] ; then
+        kraken2 --db ${kraken_db} --threads \$(nproc) --report kraken.log ${fastq_Nremove_ch} > ${fastq_Nremove_ch.baseName}.kraken2
     else
-        echo -e "\nNo kraken analysis performed in local running\n" > kraken.log
+        echo -e "\nNo kraken analysis performed in local running because the number of cpu is \$(nproc)\n" > kraken.log
         echo "" > NULL
     fi
     """
 }
-
-
-process fastqc1 { // section 8.5 of the labbook 20200520
-    label 'fastqc'
-    publishDir "${out_path}/fastQC1", mode: 'copy', pattern: "*_fastqc.*", overwrite: false // https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
-    cache 'true'
-
-    input:
-    path fastq_Nremove_ch
-
-    output:
-    path "fastqc1.log", emit: fastqc1_log_ch, optional: true
-    path "*_fastqc.*", emit: fastqc1_ch, optional: true
-
-    script:
-    """
-    #!/bin/bash -ue
-    echo -e "\n\n================\n\n${fastq_Nremove_ch.baseName}\n\n================\n\n" > fastqc1.log
-    fastqc ${fastq_Nremove_ch} |& tee -a fastqc1.log
-    """
-}
-
 
 process multiQC{
     label "multiqc"
@@ -197,7 +194,8 @@ process multiQC{
     path fastq_Nremove_ch // no parallelization expected
 
     output:
-    path "multiqc_report.html", emit: multiqc_ch
+    path "multiqc_report.html"
+    path "multiqc.log"
 
     script:
     """
@@ -205,186 +203,83 @@ process multiQC{
     """
 }
 
-process Q20 { // section 24.2 of the labbook 20200707
-    label 'samtools' // see the withLabel: bash in the nextflow config file 
-    publishDir "${out_path}/reports", mode: 'copy', pattern: "q20.txt", overwrite: false
-    // publishDir "${out_path}/files", mode: 'copy', pattern: "${file_name}_q20.bam", overwrite: false // 
+process read_cutoff {
+    label 'bash'
     cache 'true'
 
     input:
-    val file_name
-    path bam from bowtie2_ch1
+    path fastq_Nremove_ch // parallelization expected
+    val cutoff
 
     output:
-    path "${file_name}_q20_dup.bam", emit: q20_ch1, q20_ch2, q20_ch3, q20_ch4
-    path "read_nb_before", emit: bow_read_nb_ch
-    path "read_nb_after", emit: q20_read_nb_ch
-    path "q20.txt"
-    path "report.rmd", emit: log_ch11
+    path "*_cutoff.fastq", emit: fastq_cutoff_ch
+    path "cutoff_read_nb.tsv", emit: cutoff_read_nb_ch
+
 
     script:
     """
-    samtools view -q 20 -b ${bam} > ${file_name}_q20_dup.bam |& tee q20.txt
-    samtools index ${file_name}_q20_dup.bam
-    echo -e "\\n\\n<br /><br />\\n\\n###  Q20 filtering\\n\\n" > report.rmd
-    read_nb_before=\$(samtools view ${bam} | wc -l | cut -f1 -d' ') # -h to add the header
-    read_nb_after=\$(samtools view ${file_name}_q20_dup.bam | wc -l | cut -f1 -d' ') # -h to add the header
-    echo -e "\\n\\nNumber of sequences before Q20 filtering: \$(printf "%'d" \${read_nb_before})\\n" >> report.rmd
-    echo -e "\\n\\nNumber of sequences after Q20 filtering: \$(printf "%'d" \${read_nb_after})\\n" >> report.rmd
-    echo -e "Ratio: " >> report.rmd
-    echo -e \$(printf "%.2f\n" \$(echo \$" \$read_nb_after / \$read_nb_before " | bc -l)) >> report.rmd # the number in '%.2f\\n' is the number of decimals
-    echo -e "\\n\\n" >> report.rmd
-    echo \$read_nb_before > read_nb_before # because nf cannot output values easily
-    echo \$read_nb_after > read_nb_after
+    #!/bin/bash -ue
+    FILENAME_INI=\$(basename -- "${fastq_Nremove_ch}")
+    FILE_EXTENSION="\${FILENAME_INI##*.}"
+    FILENAME="\${FILENAME_INI%.*}"
+    # cutoff
+    awk -v var1=${cutoff} '{lineKind=(NR-1)%4}lineKind==0{record=\$0; next}lineKind==1{toGet=(length(\$0)>=var1); if(toGet) print record}toGet' ${fastq_Nremove_ch} > \${FILENAME}_cutoff.fastq
+    # end cutoff
+    LC_NUMERIC="en_US.UTF-8" # this is to have printf working for comma thousand separator
+    line_nb_before=\$(cat ${fastq_Nremove_ch} | wc -l)
+    line_nb_after=\$(cat \${FILENAME}_cutoff.fastq | wc -l)
+    echo -e "FILE_NAME\\tREADS_NB\\tRATIO" > cutoff_read_nb.tsv
+    echo -e "\${FILENAME_INI}\\t\$(printf "%'d" \$((\${line_nb_after} / 4)))\\t\$(printf '%.2f\\n' \$(echo \$" \$line_nb_after / \$line_nb_before " | bc -l))" >> cutoff_read_nb.tsv
+    # the number in '%.2f\\n' is the number of decimals
     """
 }
 
-process no_soft_clipping { // section 24.4 of the labbook 20200707
-    label 'samtools' // see the withLabel: bash in the nextflow config file 
+
+process read_length {
+    label 'bash'
     cache 'true'
 
     input:
-    path bam from q20_ch1
+    path fastq // parallelization expected
 
     output:
-    path "report.rmd", emit: log_ch12
+    path "*_read_length.tsv", emit: read_length_ch
 
     script:
     """
-    echo -e "\\n\\n<br /><br />\\n\\n###  Control that no more soft clipping in reads\\n\\n" > report.rmd
-    echo -e "nb of reads with soft clipping (S) in CIGAR: \$(printf "%'d" \$(samtools view ${bam} | awk '\$6 ~ /.*[S].*/{print \$0}' | wc -l | cut -f1 -d' '))" >> report.rmd
-    echo -e "\\n\\ntotal nb of reads: \$(printf "%'d" \$(samtools view ${bam} | wc -l | cut -f1 -d' '))" >> report.rmd
+    #!/bin/bash -ue
+    FILENAME_INI=\$(basename -- "${fastq}")
+    FILE_EXTENSION="\${FILENAME_INI##*.}"
+    FILENAME="\${FILENAME_INI%.*}"
+    # length
+    awk -v var1=\${FILENAME_INI} 'BEGIN{print "FILE_NAME\\tREAD_NAME\\tLENGTH"}{lineKind=(NR-1)%4}lineKind==0{record=\$0; next}lineKind==1{print var1"\\t"record"\\t"length(\$0)}' ${fastq} > \${FILENAME}_read_length.tsv
+    # end length
     """
 }
 
-process duplicate_removal { // section 24.5 of the labbook 20200707. Warning: USING 5' AND 3' COORDINATES
-    label 'samtools' // see the withLabel: bash in the nextflow config file 
-    publishDir "${out_path}/reports", mode: 'copy', pattern: "dup_report.txt", overwrite: false
-    // publishDir "${out_path}/files", mode: 'copy', pattern: "${file_name}_q20_nodup.bam", overwrite: false // 
-    cache 'true'
 
-    input:
-    val file_name
-    path bam from q20_ch2
-    path ref
-
-    output:
-    path "${file_name}_q20_nodup.bam", emit: dup_ch1, dup_ch2
-    path "dup_read_nb", emit: dup_read_nb_ch
-    path "dup_report.txt"
-    path "report.rmd", emit: log_ch13
-
-    script:
-    """
-    duplicate_removal.sh ${bam} ${ref} "${file_name}_q20_nodup.bam" "dup_report.txt" "report.rmd"
-    """
-}
-
-process plot_read_length { // section 8.8 section 8.12 of the labbook 20200520
+process plot_read_length {
     label 'r_ext' // see the withLabel: bash in the nextflow config file 
     publishDir "${out_path}/figures", mode: 'copy', pattern: "{*.png}", overwrite: false // https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
     publishDir "${out_path}/reports", mode: 'copy', pattern: "{plot_read_length_report.txt}", overwrite: false // https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
+    publishDir "${out_path}/files", mode: 'copy', pattern: "{*_freq.tsv}", overwrite: false // https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
     cache 'true'
 
     input:
-    path length2 from length_fastq_ini_ch
-    path length3 from length_fastq_5p_filter_ch
-    path length4 from length_fastq_5p_filter_cut_ch
-    path length5 from length_cutoff_ch
+    path tsv // parallelization expected
     path cute_file
 
     output:
-    path "*.png", emit: fig_ch2 // warning: several files
+    path "*.png"
+    path "*_freq.tsv"
     path "plot_read_length_report.txt"
-    path "report.rmd", emit: log_ch7
 
     script:
     """
-    echo -e '
-\\n\\n<br /><br />\\n\\n###  Length of initial reads\\n\\n
-\\n\\n</center>\\n\\n
-![Figure 2: Frequency of reads according to read size (in bp).](./figures/plot_read_length_ini.png){width=600}
-\\n\\n</center>\\n\\n
-\\n\\n<br /><br />\\n\\n###  Length of reads after selection of attC in 5 prime \\n\\n
-\\n\\n</center>\\n\\n
-![Figure 3: Frequency of reads according to read size (in bp).](./figures/plot_read_length_fivep_filtering.png){width=600}
-\\n\\n</center>\\n\\n
-\\n\\n<br /><br />\\n\\n###  Length of reads after trimming \\n\\n
-\\n\\n</center>\\n\\n
-![Figure 4: Frequency of reads according to read size (in bp).](./figures/plot_read_length_fivep_filtering_cut.png){width=600}
-\\n\\n</center>\\n\\n
-\\n\\n<br /><br />\\n\\n###  Read length after cut-off\\n\\n
-\\n\\n</center>\\n\\n
-![Figure 5: Frequency of reads according to read size (in bp).](./figures/plot_read_length_cutoff.png){width=600}
-\\n\\n</center>\\n\\n
-    ' > report.rmd
-    plot_read_length.R "${length2}" "${length3}" "${length4}" "${length5}" "${cute_file}" "plot_read_length_report.txt"
+    plot_read_length.R  "${tsv}" "${cute_file}" "plot_read_length_report.txt"
     """
     // single quotes required because of the !
 }
-
-
-
-
-process coverage { // section 24.5 of the labbook 20200707. Warning: USING 5' AND 3' COORDINATES
-    label 'bedtools' // see the withLabel: bash in the nextflow config file 
-    // publishDir "${out_path}/reports", mode: 'copy', pattern: "cov_report.txt", overwrite: false // inactivated because no cov_report published in "${out_path}/reports" probably because of the parallelization
-    publishDir "${out_path}/files", mode: 'copy', pattern: "*.cov", overwrite: false
-    cache 'true'
-
-    input:
-    path bam from bowtie2_ch2.concat(q20_ch3, dup_ch1)
-    // file ref from ref_ch3 // not required because bedtools genomecov-g ${ref} not required when inputs are bam files
-
-    output:
-    path "*_mini.cov", emit: cov_ch // warning: 3 files
-    // file "*.cov" // coverage per base if ever required but long process
-    path "cov_report.txt", emit: cov_report_ch
-
-    script:
-    """
-    # bedtools genomecov -d -ibam \${bam} > \${bam.baseName}.cov |& tee cov_report.txt # coverage per base if ever required but long process
-    # to add the chr names | awk '{h[\$NF]++}; END { for(k in h) print k, h[k] }' | sort -V > \${bam.baseName}.cov
-    bedtools genomecov -bga -ibam ${bam}  > ${bam.baseName}_mini.cov |& tee cov_report.txt
-    # -g \${ref} not required when inputs are bam files
-    """
-}
-
-
-//cov_report_ch.collectFile(name: "cov_report.txt").subscribe{it -> it.copyTo("${out_path}/reports")} // concatenate all the cov_report.txt files in channel cov_report_ch into a single file published into 
-
-
-
-process plot_coverage { // section 24.6 of the labbook 20200707
-    label 'r_ext' // see the withLabel: bash in the nextflow config file 
-    publishDir "${out_path}/figures", mode: 'copy', pattern: "{*.png}", overwrite: false // https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
-    // publishDir "${out_path}/reports", mode: 'copy', pattern: "{plot_coverage_report.txt}", overwrite: false // 
-    cache 'true'
-
-    input:
-    val file_name
-    path cov from cov_ch // warning: 3 files
-    path read_nb from bow_read_nb_ch.concat(q20_read_nb_ch, dup_read_nb_ch)
-    val ori_coord
-    val ter_coord
-    val color_coverage
-    val xlab
-    path cute_file
-
-    output:
-    path "plot_${cov.baseName}.png", emit: fig_ch3 // warning: several files
-    path "plot_coverage_report.txt", emit: plot_cov_report_ch
-
-    script:
-    """
-    plot_coverage.R "${cov.baseName}" "${read_nb}" "${ori_coord}" "${ter_coord}" "${color_coverage}" "${xlab}" "${file_name}" "${cute_file}" "plot_coverage_report.txt"
-    """
-    // single quotes required because of the !
-}
-
-
-// plot_cov_report_ch.collectFile(name: "plot_cov_report.txt").subscribe{it -> it.copyTo("${out_path}/reports")} // concatenate all the cov_report.txt files in channel cov_report_ch into a single file published into ${out_path}/reports
-
 
 process print_report{
     label 'r_ext'
@@ -408,8 +303,6 @@ process print_report{
     #!/bin/bash -ue
     cp ${template_rmd} report_file.rmd
     cp -r "${out_path}/files" .
-
-
     Rscript -e '
         rmarkdown::render(
         input = "report_file.rmd",
@@ -481,15 +374,15 @@ workflow {
 
     //////// Checks
     //// check of the bin folder
-    if( ! (file("${projectDir}/bin/coverage.sh").exists()) ){
-        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nTHE coverage.sh FILE MUST BE PRESENT IN THE ./bin FOLDER, WHERE THE main.nf file IS PRESENT\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
-    }
-    // AB_model not trested because in parameters
-    if( ! (file("${projectDir}/bin/plot_coverage.R").exists()) ){
-        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nTHE plot_coverage.R FILE MUST BE PRESENT IN THE ./bin FOLDER, WHERE THE main.nf file IS PRESENT\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
-    }
     if( ! (file("${projectDir}/bin/html_report_template.rmd").exists()) ){
         error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nTHE html_report_template.rmd FILE MUST BE PRESENT IN THE ./bin FOLDER, WHERE THE main.nf file IS PRESENT\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
+    }
+    // AB_model not trested because in parameters
+    if( ! (file("${projectDir}/bin/plot_read_length.R").exists()) ){
+        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nTHE plot_read_length.R FILE MUST BE PRESENT IN THE ./bin FOLDER, WHERE THE main.nf file IS PRESENT\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
+    }
+    if( ! (file("${projectDir}/bin/cute_little_R_functions_12.8.R").exists()) ){
+        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nTHE cute_little_R_functions_12.8.R FILE MUST BE PRESENT IN THE ./bin FOLDER, WHERE THE main.nf file IS PRESENT\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
     }
     //// end check of the bin folder
     if( ! (sample_path in String || sample_path in GString) ){
@@ -514,20 +407,21 @@ workflow {
     }else if( ! (file(ref_path).exists()) ){
         error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID ref_path PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${ref_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
     }
-    if("${system_exec}" != "local"){
-        if( ! (kraken_db_path in String || kraken_db_path in GString) ){
-            error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db_path PARAMETER IN nextflow.config FILE:\n${kraken_db_path}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
-        }else if( ! (file(kraken_db_path).exists()) ){
-            error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db_path PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${kraken_db_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
-        }
+    if( ! (kraken_db_path in String || kraken_db_path in GString) ){
+        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db_path PARAMETER IN nextflow.config FILE:\n${kraken_db_path}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
+    }else if( ! (file(kraken_db_path).exists()) ){
+        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db_path PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${kraken_db_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
+    }
+    if( ! (cutoff in String) ){
+        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID cutoff PARAMETER IN nextflow.config FILE:\n${cutoff}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
+    }else if( ! (cutoff =~  /^[0-9]+$/) ){
+        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID cutoff PARAMETER IN nextflow.config FILE:\n${cutoff}\nMUST BE A POSITIVE INGETER\n\n========\n\n"
     }
     if( ! (cute_path in String || cute_path in GString) ){
         error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID cute_path PARAMETER IN nextflow.config FILE:\n${cute_path}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
     }else if( ! (file(cute_path).exists()) ){
         error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID cute_path PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${cute_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
     }
-
-
 
     // below : those variable are already used in the config file. Thus, to late to check them. And not possible to check inside the config file
     // out_ini
@@ -543,8 +437,6 @@ workflow {
         print("    add_options: ${add_options}")
     }
     print("\n\n")
-
-
 
 
     //////// end Checks
@@ -564,8 +456,9 @@ workflow {
 
     //////// Folder creation
 
-    file("${out_path}/fastQC1").mkdirs()
+    file("${out_path}/fastQC").mkdirs()
     file("${out_path}/files").mkdirs()
+    file("${out_path}/figures").mkdirs()
 
     //////// end Folder creation
 
@@ -573,11 +466,7 @@ workflow {
 
     cute_file = file(cute_path) // in variable because a single file
     template_rmd = file(template_rmd_path)
-    if(system_exec != 'local'){
-        kraken_db = file(kraken_db_path)
-    }else{
-        kraken_db = file("NULL_kraken_db")
-    }
+    kraken_db = file(kraken_db_path)
 
 
     //////// end files import
@@ -607,8 +496,14 @@ workflow {
     )
     bam2fastq.out.bam2fastq_log_ch.collectFile(name: "bam2fastq.log").subscribe{it -> it.copyTo("${out_path}/reports")}
 
+    fastqc(
+        bam2fastq.out.fastq_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE bam2fastq PROCESS\n\n========\n\n"}
+    )
+    fastqc.out.fastqc_log_ch.collectFile(name: "fastqc1.log").subscribe{it -> it.copyTo("${out_path}/reports")}
+    fastqc.out.fastqc_print_ch.flatten().subscribe{it -> it.copyTo("${out_path}/fastQC")}
+
     Nremove(
-        bam2fastq.out.fastq_ch
+        bam2fastq.out.fastq_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE bam2fastq PROCESS\n\n========\n\n"}
     )
     ini_read_nb_ch2 = Nremove.out.ini_read_nb_ch.collectFile(name: "ini_read_nb.tsv", skip: 1, keepHeader: true)
     ini_read_nb_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
@@ -616,7 +511,7 @@ workflow {
     n_remove_read_nb_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
 
     kraken(
-        Nremove.out.fastq_Nremove_ch,
+        Nremove.out.fastq_Nremove_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE Nremove PROCESS\n\n========\n\n"},
         kraken_db
     )
     kraken.out.kraken_log_ch.collectFile(name: "kraken.log").subscribe{it -> it.copyTo("${out_path}/reports")}
@@ -624,13 +519,26 @@ workflow {
         kraken.out.kraken_ch.collectFile(name: "kraken_report.html").subscribe{it -> it.copyTo("${out_path}/files")}
     }
 
-    fastqc1(
-        Nremove.out.fastq_Nremove_ch
-    )
-    fastqc1.out.fastqc1_log_ch.collectFile(name: "fastqc1.log").subscribe{it -> it.copyTo("${out_path}/reports")}
-
     multiQC(
-        fastqc1.out.fastqc1_ch.mix(kraken.out.kraken_ch).collect()
+        fastqc.out.fastqc_print_ch.mix(kraken.out.kraken_ch).collect().ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE kraken AND fastqc PROCESSES\n\n========\n\n"}
+    )
+
+    read_cutoff(
+        Nremove.out.fastq_Nremove_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE Nremove PROCESS\n\n========\n\n"},
+        cutoff
+    )
+    cutoff_read_nb_ch2 = read_cutoff.out.cutoff_read_nb_ch.collectFile(name: "cutoff_read_nb.tsv", skip: 1, keepHeader: true)
+    cutoff_read_nb_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
+
+    read_length(
+        Nremove.out.fastq_Nremove_ch.mix(read_cutoff.out.fastq_cutoff_ch).ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE Nremove AND read_cutoff PROCESSES\n\n========\n\n"}
+    )
+    read_length_ch2 = read_length.out.read_length_ch.collectFile(name: "read_length.tsv", skip: 1, keepHeader: true)
+    read_length_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
+
+    plot_read_length(
+        read_length_ch2,
+        cute_file
     )
 
     print_report(
@@ -639,8 +547,6 @@ workflow {
         n_remove_read_nb_ch2, 
         nb_bam_files
     )
-
-// bam_ch.collect().ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE distance_hist PROCESS\n\n========\n\n"}
 
     backup(
         config_file, 

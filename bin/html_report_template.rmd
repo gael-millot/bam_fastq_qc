@@ -135,61 +135,30 @@ Results are published in the [fastQC1](./fastQC1) folder.
 
 Results are published in the [Report](./reports/multiqc_report.html) folder.
 
-<br><br>
-
 <br /><br />
 
-###  Q20 filtering
+
+### Reads length
 
 
 
-
-Number of sequences before Q20 filtering: 3,742
-
-
-
-Number of sequences after Q20 filtering: 2,182
-
-Ratio: 
-0.58
-
-
-
-
-
-<br /><br />
-
-###  Control that no more soft clipping in reads
-
-
-nb of reads with soft clipping (S) in CIGAR: 0
-
-
-total nb of reads: 2,182
-<br /><br />
-
-### Removal of duplicates using the 5\' and 3\' coordinates
-
-
-
-
-Number of sequences before removing duplicates: 2,182
-
-Number of sequences after removing duplicates: 1,660
-
-Ratio: 
-0.76
-
-
-
-
-
-
-<br /><br />
-
-###  Read coverage
-
-
+\\n\\n<br /><br />\\n\\n###  Length of initial reads\\n\\n
+\\n\\n</center>\\n\\n
+![Figure 2: Frequency of reads according to read size (in bp).](./figures/plot_read_length_ini.png){width=600}
+\\n\\n</center>\\n\\n
+\\n\\n<br /><br />\\n\\n###  Length of reads after selection of attC in 5 prime \\n\\n
+\\n\\n</center>\\n\\n
+![Figure 3: Frequency of reads according to read size (in bp).](./figures/plot_read_length_fivep_filtering.png){width=600}
+\\n\\n</center>\\n\\n
+\\n\\n<br /><br />\\n\\n###  Length of reads after trimming \\n\\n
+\\n\\n</center>\\n\\n
+![Figure 4: Frequency of reads according to read size (in bp).](./figures/plot_read_length_fivep_filtering_cut.png){width=600}
+\\n\\n</center>\\n\\n
+\\n\\n<br /><br />\\n\\n###  Read length after cut-off\\n\\n
+\\n\\n</center>\\n\\n
+![Figure 5: Frequency of reads according to read size (in bp).](./figures/plot_read_length_cutoff.png){width=600}
+\\n\\n</center>\\n\\n
+    ' > report.rmd
 
 
 
