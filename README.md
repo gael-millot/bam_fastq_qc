@@ -258,10 +258,6 @@ The developers & maintainers of the mentioned softwares and packages, including:
 - [Bash](https://www.gnu.org/software/bash/)
 - [Ubuntu](https://ubuntu.com/)
 
-Special acknowledgement to:
-
-- [PacBio](https://www.pacb.com/) and its [support team](support@pacb.com) for the release of [SMRT Link](https://www.pacb.com/wp-content/uploads/SMRT-Link-software-installation-guide-v25.2.pdf).
-
 <br /><br />
 ## WHAT'S NEW IN
 
