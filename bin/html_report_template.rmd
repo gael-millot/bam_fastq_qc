@@ -7,6 +7,7 @@ output:
     toc_float: TRUE
 params:
   nb_bam_files: -1
+  cutoff: -1
 ---
 
 \n\n<br /><br />\n\n
@@ -94,7 +95,7 @@ details.inline {display:inline-block;}
 
 
 ### Initial dataset
-<br><br>
+<br>
 
 Number of initial input files: ```r params$nb_bam_files```
 <br><br>
@@ -112,7 +113,7 @@ knitr::kable(df, format = "markdown", row.names = FALSE)
 <br>
 
 ### Reads made of N only
-<br><br>
+<br>
 
 Number of reads made of N only per file:
 <br><details class="inline"><summary style="color: #1a73e8; font-family: Arial, sans-serif; font-size: 1em; font-weight: bold;">view</summary>
@@ -127,27 +128,90 @@ knitr::kable(df, format = "markdown", row.names = FALSE)
 </details>
 <br>
 
-###  Read QC
-<br><br>
+### Read QC
+<br>
 
 Results are published in the [fastQC1](./fastQC1) folder and are also reported in the multiqc report below.
 <br /><br />
 
-### MultiQC (QC and contamination)
-<br><br>
+### Contaminations
+<br>
 
-Click [here](./reports/multiqc_report.html) to see the report.
-The multiqc_report.html file can also be found in the [Report](./reports) folder.
+Results are published in the [kraken](./kraken) folder and are also reported in the multiqc report below.
+<br /><br />
+
+### MultiQC (QC and contaminations)
+<br>
+
+Click [here](./multiQC/multiqc_report.html) to see the report.
+The *multiqc_report.html* file can also be found in the [multiQC](./multiQC) folder.
 
 <br /><br />
 
+### Read length cutoff
+<br>
+
+Cutoff set by the user: ```r format(params$cutoff, scientific = FALSE)```
+
+Number of reads kept per file:
+<br><details class="inline"><summary style="color: #1a73e8; font-family: Arial, sans-serif; font-size: 1em; font-weight: bold;">view</summary>
+<span style="color:green">*cutoff_read_nb.tsv file in the [files](./files) folder*</span>
+```{r, echo=FALSE, results='asis'}
+df <- read_tsv_with_dummy("cutoff_read_nb.tsv")
+if (is.data.frame(df) && attr(df, "truncated")) {
+  cat("\n**(Note: Table truncated to 10 rows. Full file available in the [files](./files) folder.)**\n\n")
+}
+knitr::kable(df, format = "markdown", row.names = FALSE)
+```
+</details>
+<br>
 
 ### Reads length
+<br><b>Line</b>: single sample.
+<br><b>X-axis</b>: Read Length.
+<br><b>Y-axis</b>: count.
+<br><br><b>Rigth graph</b>: Whole sequences (after potential removal of reads made of N only).
+<br><b>Left graph</b>: Idem but keeping only the reads above the read length cutoff value.
+<br>
 
+```{r, echo=FALSE, results='asis'}
+    png_files <- list.files(path = ".", pattern = "\\.png$",  full.names = TRUE)
+    # Number of images per row
+    # Adjust the n_per_row and flex: 1 0 30% if you want a different number per row (e.g., for 4 per row, use 25%).
+    n_per_row <- 2
+    if(n_per_row == 1){
+        html_with <- 35
+    }else if(n_per_row == 2){
+        html_with <- 70
+    }else{
+        html_with <- 100
+    }
+    width_pct <- html_with / n_per_row # 25% per picture on 2 columns if 50 used for the width of the html window
+        # use <div style="width:%d%%; margin:auto;"> to center the plots. Otherwise, on the left
+    cat(sprintf('
+<div style="width:%d%%;">
+  <div style="display: flex; flex-wrap: wrap;">
+', 
+        html_with
+    ))
+    for (i0 in seq_along(png_files)) {
+        cat(sprintf('
+<div style="flex: 1 0 %.2f%%; box-sizing: border-box; padding: 5px; text-align: center;">
+<img src="%s" onclick="toggleFullscreen(this)" style="max-width:100%%; height:auto;">
+</div>
+', 
+width_pct, png_files[i0] # add ", basename(png_files[i0])" to have the name of the file below each plot, as well as <small>%s</small> before </div>
+))
+    }
+    cat('
+  </div>
+</div>
+')
+```
+<br><br>
 
-
-
-
+In the  [files](./files) folder, see also:<br /><ul><li>read_length.tsv: length of each read in bases, after N removal, and with or without cutoff<br /></li><li>read_length_freq.tsv: values of the right graph<br /></li><li>cutoff_read_length_freq.tsv: values of the left graph<br></ul>
+<br><br>
 
 
 ###  Backup

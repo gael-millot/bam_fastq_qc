@@ -1,9 +1,0 @@
-[WARNING]         multiqc : MultiQC Version v1.30 now available!
-[INFO   ]         multiqc : This is MultiQC v1.10.1
-[INFO   ]         multiqc : Template    : default
-[INFO   ]         multiqc : Searching   : /mnt/c/Users/gmillot/Documents/Git_projects/19583_loot/work/a0/8d2066548a7da07b98b4f04f84203a
-Searching   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 12/12  [INFO   ]          fastqc : Found 2 reports
-[INFO   ]         multiqc : Compressing plot data
-[INFO   ]         multiqc : Report      : multiqc_report.html
-[INFO   ]         multiqc : Data        : multiqc_report_data
-[INFO   ]         multiqc : MultiQC complete

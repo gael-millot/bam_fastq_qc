@@ -3,8 +3,7 @@ nextflow.enable.dsl=2
 #########################################################################
 ##                                                                     ##
 ##     main.nf                                                         ##
-##     Comparative analysis of methylation in E. coli                  ##
-##         using Hifi PacBio Revio long reads                          ##
+##     bam_fastq_qc                                                    ##
 ##                                                                     ##
 ##     Gael A. Millot                                                  ##
 ##     Bioinformatics and Biostatistics Hub                            ##
@@ -86,14 +85,14 @@ process Unzip {
 }
 
 
-process bam2fastq{
+process bam2fastq{ // is indicated as bam2fastq - during nextflow running if bam_ch is empty
     label "bioconvert"
 
     input:
     path bam_ch // parallelization expected
 
     output:
-    path "*.fastq", emit: fastq_ch
+    path "*.fastq", emit: tempo_fastq_ch
     path "*.log", emit: bam2fastq_log_ch, optional: true
 
     script:
@@ -162,7 +161,7 @@ process Nremove { // remove the reads made of N only.
 
 process kraken {
     label 'kraken'
-    publishDir "${out_path}/reports", mode: 'copy', pattern: "*_kraken2.txt", overwrite: false
+    publishDir "${out_path}/kraken", mode: 'copy', pattern: "*_kraken2.txt", overwrite: false
     cache 'true'
 
     input:
@@ -183,7 +182,7 @@ process kraken {
 
 process multiQC{
     label "multiqc"
-    publishDir "${out_path}/reports", mode: 'copy', pattern: "multiqc_report*", overwrite: false
+    publishDir "${out_path}/multiQC", mode: 'copy', pattern: "multiqc_report*", overwrite: false
     publishDir "${out_path}/reports", mode: 'copy', pattern: "multiqc.log", overwrite: false
 
     input:
@@ -266,7 +265,7 @@ process plot_read_length {
     path cute_file
 
     output:
-    path "*.png"
+    path "*.png", emit: png_ch
     path "*_freq.tsv"
     path "plot_read_length_report.txt"
 
@@ -288,7 +287,10 @@ process print_report{
     path template_rmd
     path ini_read_nb
     path n_remove_read_nb
+    path cutoff_read_nb_ch2
+    path png_ch
     val nb_bam_files
+    val cutoff
 
     output:
     path "report.html"
@@ -305,7 +307,8 @@ process print_report{
         output_file = "report.html",
         # list of the variables waiting to be replaced in the rmd file :
         params = list(
-            nb_bam_files = ${nb_bam_files}
+            nb_bam_files = ${nb_bam_files}, 
+            cutoff = ${cutoff}
         ),
         # output_dir = ".",
         # intermediates_dir = "./",
@@ -390,18 +393,13 @@ workflow {
         if (files.isEmpty()) {
             error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID sample_path PARAMETER IN nextflow.config FILE.\nCANNOT BE AN EMPTY FOLDER: ${sample_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
         }else{
-            tempo_log = files.every { it.name.toLowerCase().endsWith('.bam') }
+            tempo_log = files.every{it.name.toLowerCase() ==~ /.*\.(bam|fq|fastq)$/} // for single end: files.every{it.name.toLowerCase().endsWith('.bam') }
             if ( ! tempo_log) {
                 error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID sample_path PARAMETER IN nextflow.config FILE.\nTHE INDICATED FOLDER CAN ONLY CONTAIN .bam FILES: ${sample_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
             }
         }
-    }else if( ! (sample_path =~ /.*\.(zip|bam)$/)){
-        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID sample_path PARAMETER IN nextflow.config FILE.\nIF NOT A FOLDER, MUST BE A FILE FINISHING BY .zip OR .bam.\nHERE IT IS: ${sample_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
-    }
-    if( ! (ref_path in String || ref_path in GString) ){
-        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID ref_path PARAMETER IN nextflow.config FILE:\n${ref_path}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
-    }else if( ! (file(ref_path).exists()) ){
-        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID ref_path PARAMETER IN nextflow.config FILE (DOES NOT EXIST): ${ref_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
+    }else if( ! (sample_path =~ /.*\.(zip|bam|fq|fastq)$/)){
+        error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID sample_path PARAMETER IN nextflow.config FILE.\nIF NOT A FOLDER, MUST BE A FILE FINISHING BY .zip OR .bam OR .fq OR .fastq.\nHERE IT IS: ${sample_path}\nIF POINTING TO A DISTANT SERVER, CHECK THAT IT IS MOUNTED\n\n========\n\n"
     }
     if( ! (kraken_db_path in String || kraken_db_path in GString) ){
         error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nINVALID kraken_db_path PARAMETER IN nextflow.config FILE:\n${kraken_db_path}\nMUST BE A SINGLE CHARACTER STRING\n\n========\n\n"
@@ -453,6 +451,8 @@ workflow {
     //////// Folder creation
 
     file("${out_path}/fastQC").mkdirs()
+    file("${out_path}/multiQC").mkdirs()
+    file("${out_path}/kraken").mkdirs()
     file("${out_path}/files").mkdirs()
     file("${out_path}/figures").mkdirs()
 
@@ -470,39 +470,42 @@ workflow {
 
     //////// Main
 
-    if(sample_path =~ /.*\.zip$/){
-        Unzip( // warning: it is a process defined above
-            Channel.fromPath(sample_path)
-        ) 
-        bam_ch = Unzip.out.unzip_ch.flatten()
-    }else if(sample_path =~ /^http.*\.bam$/){
-        bam_ch = Channel.fromPath("${sample_path}", checkIfExists: false) // in channel because many files 
-    }else{
-        bam_ch = Channel.fromPath("${sample_path}/*.*", checkIfExists: false) // in channel because many files 
-    }
-    
-    nb_bam_files = bam_ch.count()
-
     workflowParam(
         modules
     )
 
+    if(sample_path =~ /.*\.zip$/){
+        Unzip( // warning: it is a process defined above
+            Channel.fromPath(sample_path)
+        ) 
+        files_ch = Unzip.out.unzip_ch.flatten()
+    }else if(sample_path =~ /^http.*\.(bam|fq|fastq)$/){
+        files_ch = Channel.fromPath("${sample_path}", checkIfExists: false) // in channel because many files 
+    }else{
+        files_ch = Channel.fromPath("${sample_path}/*.*", checkIfExists: false) // in channel because many files 
+    }
+    
+    nb_bam_files = files_ch.count()
 
-    bam2fastq(
+    bam_ch = files_ch.filter { it.name ==~ /.*\.bam(\.gz)?$/ }
+    ini_fastq_ch = files_ch.filter { it.name ==~ /.*\.(fastq|fq)(\.gz)?$/ }
+
+    bam2fastq( // is indicated as bam2fastq - during nextflow running if bam_ch is empty
         bam_ch
     )
     bam2fastq.out.bam2fastq_log_ch.collectFile(name: "bam2fastq.log").subscribe{it -> it.copyTo("${out_path}/reports")}
 
+    fastq_ch = ini_fastq_ch.mix(bam2fastq.out.tempo_fastq_ch)
 
     fastqc(
-        bam2fastq.out.fastq_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE bam2fastq PROCESS\n\n========\n\n"}
+        fastq_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE bam2fastq PROCESS\n\n========\n\n"}
     )
     fastqc.out.fastqc_log_ch.collectFile(name: "fastqc1.log").subscribe{it -> it.copyTo("${out_path}/reports")}
     fastqc.out.fastqc_print_ch.flatten().subscribe{it -> it.copyTo("${out_path}/fastQC")}
 
 
     Nremove(
-        bam2fastq.out.fastq_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE bam2fastq PROCESS\n\n========\n\n"}
+        fastq_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE bam2fastq PROCESS\n\n========\n\n"}
     )
     ini_read_nb_ch2 = Nremove.out.ini_read_nb_ch.collectFile(name: "ini_read_nb.tsv", skip: 1, keepHeader: true)
     ini_read_nb_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
@@ -546,7 +549,10 @@ workflow {
         template_rmd, 
         ini_read_nb_ch2, 
         n_remove_read_nb_ch2, 
-        nb_bam_files
+        cutoff_read_nb_ch2, 
+        plot_read_length.out.png_ch, 
+        nb_bam_files,
+        cutoff
     )
 
 
