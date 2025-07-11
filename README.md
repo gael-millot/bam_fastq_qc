@@ -104,7 +104,7 @@ with -c to specify the name of the config file used.
 Run the following command from where you want the results:
 
 <pre>
-nextflow run -hub pasteur gmillot/19583_loot -r v1.0.0
+nextflow run -hub pasteur gmillot/bam_fastq_qc -r v1.0.0
 </pre>
 
 <br /><br />
@@ -116,7 +116,7 @@ nextflow run -hub pasteur gmillot/19583_loot -r v1.0.0
 Copy-paste this after having modified the EXEC_PATH variable:
 
 <pre>
-EXEC_PATH=$(pwd) # where the bin folder of 19583_loot is located (by default, the same path as for the main.nf file)
+EXEC_PATH=$(pwd) # where the bin folder of bam_fastq_qc is located (by default, the same path as for the main.nf file)
 export CONF_BEFORE=/opt/gensoft/exe # on maestro
 
 export JAVA_CONF=java/13.0.2
@@ -146,7 +146,7 @@ Modify the second line of the code below, and run from where the *main.nf* and *
 
 <pre>
 HOME_INI=$HOME
-HOME="${HELIXHOME}/19583_loot/" # $HOME changed to allow the creation of .nextflow into /$HELIXHOME/19583_loot/, for instance. See NFX_HOME in the nextflow software script
+HOME="${HELIXHOME}/bam_fastq_qc/" # $HOME changed to allow the creation of .nextflow into /$HELIXHOME/bam_fastq_qc/, for instance. See NFX_HOME in the nextflow software script
 nextflow run main.nf -c nextflow.config # or nextflow run main.nf -c nextflow.config --modules ${MODULES} in order to have all the used module versions recorded into the report file 
 HOME=$HOME_INI
 </pre>
@@ -160,8 +160,8 @@ Modify the first and third lines of the code below, and run (results will be whe
 <pre>
 VERSION="v1.0"
 HOME_INI=$HOME
-HOME="${HELIXHOME}/19583_loot/" # $HOME changed to allow the creation of .nextflow into /$HELIXHOME/19583_loot/, for instance. See NFX_HOME in the nextflow software script
-nextflow run -hub pasteur gmillot/19583_loot -r $VERSION -c $HOME/nextflow.config
+HOME="${HELIXHOME}/bam_fastq_qc/" # $HOME changed to allow the creation of .nextflow into /$HELIXHOME/bam_fastq_qc/, for instance. See NFX_HOME in the nextflow software script
+nextflow run -hub pasteur gmillot/bam_fastq_qc -r $VERSION -c $HOME/nextflow.config
 HOME=$HOME_INI
 </pre>
 
@@ -171,7 +171,7 @@ HOME=$HOME_INI
 
 #### Message 1
 ```
-Unknown error accessing project `gmillot/19583_loot` -- Repository may be corrupted: /pasteur/sonic/homes/gmillot/.nextflow/assets/gmillot/19583_loot
+Unknown error accessing project `gmillot/bam_fastq_qc` -- Repository may be corrupted: /pasteur/sonic/homes/gmillot/.nextflow/assets/gmillot/bam_fastq_qc
 ```
 
 Purge using:
@@ -181,7 +181,7 @@ rm -rf /pasteur/sonic/homes/gmillot/.nextflow/assets/gmillot*
 
 #### Message 2
 ```
-WARN: Cannot read project manifest -- Cause: Remote resource not found: https://gitlab.pasteur.fr/api/v4/projects/gmillot%2F19583_loot
+WARN: Cannot read project manifest -- Cause: Remote resource not found: https://gitlab.pasteur.fr/api/v4/projects/gmillot%2Fbam_fastq_qc
 ```
 
 Contact Gael Millot (distant repository is not public).
@@ -202,14 +202,14 @@ chmod 755 bin/*.*
 
 ## OUTPUT
 
-By default, all the results are returned in a *result* folder where the *main.nf* executed file is located (created if does not exist). This can be changed using the *out_path_ini* parameter of the *nextflow.config* file. By default, each execution produces a new folder named *19583_loot_\<ID\>*, created inside the *result* folder and containing all the outputs of the execution. The name of the folder can be changed using the *result_folder_name* parameter of the *nextflow.config* file. The new name file will be followed by an \<ID\> in all cases.
+By default, all the results are returned in a *result* folder where the *main.nf* executed file is located (created if does not exist). This can be changed using the *out_path_ini* parameter of the *nextflow.config* file. By default, each execution produces a new folder named *bam_fastq_qc_\<ID\>*, created inside the *result* folder and containing all the outputs of the execution. The name of the folder can be changed using the *result_folder_name* parameter of the *nextflow.config* file. The new name file will be followed by an \<ID\> in all cases.
 <br /><br />
-An example of results obtained with the dataset is present at this address: https://zenodo.org/records/15132203/files/19583_loot_1743690584.zip.
+An example of results obtained with the dataset is present at this address: https://zenodo.org/records/15132203/files/bam_fastq_qc_1743690584.zip.
 
 <br /><br />
 Mandatory elements:
 <br /><br />
-| 19583_loot_<UNIQUE_ID> folders and files | Description |
+| bam_fastq_qc_<UNIQUE_ID> folders and files | Description |
 | --- | --- |
 | **report.html** | Report of the analysis. |
 | **reports** | Folder containing all the reports of the different processes as well as the **nextflow.config** file used. Of note, contains notably the kraken reports:<ul><li> *\<FILE_NAME\>report_kraken2.txt* that summarizes the classification results, showing the abundance of taxa at all taxonomic levels (used in multiQC). Columns are:<br><ul><li>Percentage of reads</li><li>Number of reads (direct and cumulative)</li><li>Taxonomic rank code (U, - for unclassified; D for domain, P for phylum, etc.)</li><li>NCBI taxonomy ID</li><li>Scientific name (indented for hierarchy)</li></ul> </li><li>*\<FILE_NAME\>classif_kraken2.txt* that contains the classification results for every read of the input file. Each line corresponds to one read. Columns are:<br><ul><li>Read ID</li><li>Classification status (C for classified, U for unclassified)</li><li>NCBI taxonomy ID (if classified)</li><li>Sequence length</li><li>List of taxonomy IDs for each k-mer in the read |
@@ -219,7 +219,7 @@ Mandatory elements:
 ## VERSIONS
 
 
-The different releases are tagged [here](https://gitlab.pasteur.fr/gmillot/19583_loot/-/tags).
+The different releases are tagged [here](https://gitlab.pasteur.fr/gmillot/bam_fastq_qc/-/tags).
 
 <br /><br />
 ## LICENCE
