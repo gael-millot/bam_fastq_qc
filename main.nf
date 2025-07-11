@@ -162,6 +162,7 @@ process Nremove { // remove the reads made of N only.
 
 process kraken {
     label 'kraken'
+    publishDir "${out_path}/reports", mode: 'copy', pattern: "*_kraken2.txt", overwrite: false
     cache 'true'
 
     input:
@@ -169,37 +170,32 @@ process kraken {
     path kraken_db
 
     output:
-    path(['*.kraken2', 'NULL']), emit: kraken_ch, optional: true
+    path "*_kraken2.txt", emit: kraken_ch, optional: true
     path "kraken.log", emit: kraken_log_ch, optional: true
 
     script:
     """
     #!/bin/bash -ue
     echo -e "\n\n================\n\n${fastq_Nremove_ch.baseName}\n\n================\n\n" > kraken.log
-    if [[ "\$(nproc)" -gt 10 ]] ; then
-        kraken2 --db ${kraken_db} --threads \$(nproc) --report kraken.log ${fastq_Nremove_ch} > ${fastq_Nremove_ch.baseName}.kraken2
-    else
-        echo -e "\nNo kraken analysis performed in local running because the number of cpu is \$(nproc)\n" > kraken.log
-        echo "" > NULL
-    fi
+        kraken2 --db ${kraken_db} --threads \$(nproc) --report ${fastq_Nremove_ch.baseName}_report_kraken2.txt ${fastq_Nremove_ch} > ${fastq_Nremove_ch.baseName}_classif_kraken2.txt |& tee -a kraken.log
     """
 }
 
 process multiQC{
     label "multiqc"
-    publishDir "${out_path}/reports", mode: 'copy', pattern: "multiqc_report.html", overwrite: false
+    publishDir "${out_path}/reports", mode: 'copy', pattern: "multiqc_report*", overwrite: false
     publishDir "${out_path}/reports", mode: 'copy', pattern: "multiqc.log", overwrite: false
 
     input:
     path fastq_Nremove_ch // no parallelization expected
 
     output:
-    path "multiqc_report.html"
+    path "multiqc_report*"
     path "multiqc.log"
 
     script:
     """
-    multiqc . -n multiqc_report.html |& tee -a multiqc.log
+    multiqc . --filename multiqc_report.html |& tee -a multiqc.log
     """
 }
 
@@ -491,16 +487,19 @@ workflow {
         modules
     )
 
+
     bam2fastq(
         bam_ch
     )
     bam2fastq.out.bam2fastq_log_ch.collectFile(name: "bam2fastq.log").subscribe{it -> it.copyTo("${out_path}/reports")}
+
 
     fastqc(
         bam2fastq.out.fastq_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE bam2fastq PROCESS\n\n========\n\n"}
     )
     fastqc.out.fastqc_log_ch.collectFile(name: "fastqc1.log").subscribe{it -> it.copyTo("${out_path}/reports")}
     fastqc.out.fastqc_print_ch.flatten().subscribe{it -> it.copyTo("${out_path}/fastQC")}
+
 
     Nremove(
         bam2fastq.out.fastq_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE bam2fastq PROCESS\n\n========\n\n"}
@@ -510,18 +509,17 @@ workflow {
     n_remove_read_nb_ch2 = Nremove.out.n_remove_read_nb_ch.collectFile(name: "n_remove_read_nb.tsv", skip: 1, keepHeader: true)
     n_remove_read_nb_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
 
+
     kraken(
         Nremove.out.fastq_Nremove_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE Nremove PROCESS\n\n========\n\n"},
         kraken_db
     )
     kraken.out.kraken_log_ch.collectFile(name: "kraken.log").subscribe{it -> it.copyTo("${out_path}/reports")}
-    if(system_exec != 'local'){
-        kraken.out.kraken_ch.collectFile(name: "kraken_report.html").subscribe{it -> it.copyTo("${out_path}/files")}
-    }
-
+ 
     multiQC(
         fastqc.out.fastqc_print_ch.mix(kraken.out.kraken_ch).collect().ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE kraken AND fastqc PROCESSES\n\n========\n\n"}
     )
+
 
     read_cutoff(
         Nremove.out.fastq_Nremove_ch.ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE Nremove PROCESS\n\n========\n\n"},
@@ -530,16 +528,19 @@ workflow {
     cutoff_read_nb_ch2 = read_cutoff.out.cutoff_read_nb_ch.collectFile(name: "cutoff_read_nb.tsv", skip: 1, keepHeader: true)
     cutoff_read_nb_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
 
+
     read_length(
         Nremove.out.fastq_Nremove_ch.mix(read_cutoff.out.fastq_cutoff_ch).ifEmpty{error "\n\n========\n\nERROR IN NEXTFLOW EXECUTION\n\nEMPTY OUTPUT FOLLOWING THE Nremove AND read_cutoff PROCESSES\n\n========\n\n"}
     )
     read_length_ch2 = read_length.out.read_length_ch.collectFile(name: "read_length.tsv", skip: 1, keepHeader: true)
     read_length_ch2.subscribe{it -> it.copyTo("${out_path}/files")}
 
+
     plot_read_length(
         read_length_ch2,
         cute_file
     )
+
 
     print_report(
         template_rmd, 
@@ -547,6 +548,7 @@ workflow {
         n_remove_read_nb_ch2, 
         nb_bam_files
     )
+
 
     backup(
         config_file, 

@@ -1,0 +1,2 @@
+full .nextflow.log is in: /mnt/c/Users/gmillot/Documents/Git_projects/19583_loot
+The one in the result folder is not complete (miss the end)

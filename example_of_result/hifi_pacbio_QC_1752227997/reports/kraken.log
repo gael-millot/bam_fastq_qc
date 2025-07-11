@@ -1,0 +1,48 @@
+100.00	193	0	R	1	root
+100.00	193	0	R1	131567	  cellular organisms
+100.00	193	0	D	2	    Bacteria
+100.00	193	0	P	1224	      Pseudomonadota
+100.00	193	0	C	1236	        Gammaproteobacteria
+100.00	193	0	O	91347	          Enterobacterales
+100.00	193	16	F	543	            Enterobacteriaceae
+ 89.64	173	22	G	561	              Escherichia
+ 75.65	146	130	S	562	                Escherichia coli
+  3.11	6	6	S1	2778657	                  Escherichia coli O9:H10
+  1.55	3	0	S1	83334	                  Escherichia coli O157:H7
+  1.55	3	3	S2	155864	                    Escherichia coli O157:H7 str. EDL933
+  0.52	1	1	S1	696406	                  Escherichia coli UMNK88
+  0.52	1	1	S1	1446707	                  Escherichia coli O25:NM
+  0.52	1	1	S1	1045010	                  Escherichia coli O157
+  0.52	1	1	S1	2848144	                  Escherichia coli O158:H23
+  0.52	1	0	S1	1072458	                  Escherichia coli O7:K1
+  0.52	1	1	S2	1072459	                    Escherichia coli O7:K1 str. CE10
+  0.52	1	1	S1	2603836	                  Escherichia coli O10:H32
+  0.52	1	1	S1	183192	                  Escherichia coli O157:H-
+  2.07	4	4	S	564	                Escherichia fergusonii
+  0.52	1	0	G1	2608889	                unclassified Escherichia
+  0.52	1	1	S	2044467	                  Escherichia sp. E4742
+  1.04	2	0	G	620	              Shigella
+  1.04	2	2	S	621	                Shigella boydii
+  0.52	1	0	F1	2890311	              Klebsiella/Raoultella group
+  0.52	1	0	G	570	                Klebsiella
+  0.52	1	1	S	548	                  Klebsiella aerogenes
+  0.52	1	0	G	590	              Salmonella
+  0.52	1	0	S	28901	                Salmonella enterica
+  0.52	1	1	S1	59201	                  Salmonella enterica subsp. enterica
+100.00	193	0	R	1	root
+100.00	193	0	R1	131567	  cellular organisms
+100.00	193	0	D	2	    Bacteria
+100.00	193	0	P	1224	      Pseudomonadota
+100.00	193	0	C	1236	        Gammaproteobacteria
+100.00	193	0	O	91347	          Enterobacterales
+100.00	193	11	F	543	            Enterobacteriaceae
+ 94.30	182	38	G	561	              Escherichia
+ 73.06	141	126	S	562	                Escherichia coli
+  3.11	6	6	S1	2778657	                  Escherichia coli O9:H10
+  3.11	6	1	S1	83334	                  Escherichia coli O157:H7
+  2.59	5	5	S2	155864	                    Escherichia coli O157:H7 str. EDL933
+  1.55	3	1	S1	83333	                  Escherichia coli K-12
+  0.52	1	1	S2	511145	                    Escherichia coli str. K-12 substr. MG1655
+  0.52	1	1	S2	879462	                    Escherichia coli str. K-12 substr. MG1655star
+  1.04	2	2	S	564	                Escherichia fergusonii
+  0.52	1	1	S	208962	                Escherichia albertii

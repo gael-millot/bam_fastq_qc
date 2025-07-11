@@ -213,10 +213,8 @@ Mandatory elements:
 | 19583_loot_<UNIQUE_ID> folders and files | Description |
 | --- | --- |
 | **report.html** | Report of the analysis. |
-| **reports** | Folder containing all the reports of the different processes as well as the **nextflow.config** file used. |
+| **reports** | Folder containing all the reports of the different processes as well as the **nextflow.config** file used. Of note, contains notably the kraken reports:<ul><li> *\<FILE_NAME\>report_kraken2.txt* that summarizes the classification results, showing the abundance of taxa at all taxonomic levels (used in multiQC). Columns are:<br><ul><li>Percentage of reads</li><li>Number of reads (direct and cumulative)</li><li>Taxonomic rank code (U, - for unclassified; D for domain, P for phylum, etc.)</li><li>NCBI taxonomy ID</li><li>Scientific name (indented for hierarchy)</li></ul> </li><li>*\<FILE_NAME\>classif_kraken2.txt* that contains the classification results for every read of the input file. Each line corresponds to one read. Columns are:<br><ul><li>Read ID</li><li>Classification status (C for classified, U for unclassified)</li><li>NCBI taxonomy ID (if classified)</li><li>Sequence length</li><li>List of taxonomy IDs for each k-mer in the read |
 | **files** | Folder containing some of the output files of the processes. |
-
-
 
 <br /><br />
 ## VERSIONS

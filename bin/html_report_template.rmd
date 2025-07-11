@@ -94,6 +94,7 @@ details.inline {display:inline-block;}
 
 
 ### Initial dataset
+<br><br>
 
 Number of initial input files: ```r params$nb_bam_files```
 <br><br>
@@ -111,6 +112,7 @@ knitr::kable(df, format = "markdown", row.names = FALSE)
 <br>
 
 ### Reads made of N only
+<br><br>
 
 Number of reads made of N only per file:
 <br><details class="inline"><summary style="color: #1a73e8; font-family: Arial, sans-serif; font-size: 1em; font-weight: bold;">view</summary>
@@ -126,39 +128,21 @@ knitr::kable(df, format = "markdown", row.names = FALSE)
 <br>
 
 ###  Read QC
+<br><br>
 
-
-Results are published in the [fastQC1](./fastQC1) folder.
+Results are published in the [fastQC1](./fastQC1) folder and are also reported in the multiqc report below.
 <br /><br />
 
-### MultiQC
+### MultiQC (QC and contamination)
+<br><br>
 
-Results are published in the [Report](./reports/multiqc_report.html) folder.
+Click [here](./reports/multiqc_report.html) to see the report.
+The multiqc_report.html file can also be found in the [Report](./reports) folder.
 
 <br /><br />
 
 
 ### Reads length
-
-
-
-\\n\\n<br /><br />\\n\\n###  Length of initial reads\\n\\n
-\\n\\n</center>\\n\\n
-![Figure 2: Frequency of reads according to read size (in bp).](./figures/plot_read_length_ini.png){width=600}
-\\n\\n</center>\\n\\n
-\\n\\n<br /><br />\\n\\n###  Length of reads after selection of attC in 5 prime \\n\\n
-\\n\\n</center>\\n\\n
-![Figure 3: Frequency of reads according to read size (in bp).](./figures/plot_read_length_fivep_filtering.png){width=600}
-\\n\\n</center>\\n\\n
-\\n\\n<br /><br />\\n\\n###  Length of reads after trimming \\n\\n
-\\n\\n</center>\\n\\n
-![Figure 4: Frequency of reads according to read size (in bp).](./figures/plot_read_length_fivep_filtering_cut.png){width=600}
-\\n\\n</center>\\n\\n
-\\n\\n<br /><br />\\n\\n###  Read length after cut-off\\n\\n
-\\n\\n</center>\\n\\n
-![Figure 5: Frequency of reads according to read size (in bp).](./figures/plot_read_length_cutoff.png){width=600}
-\\n\\n</center>\\n\\n
-    ' > report.rmd
 
 
 
