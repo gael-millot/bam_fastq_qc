@@ -9,7 +9,7 @@
 
 
    - [AIM](#aim)
-   - [WARNING](#warning)
+   - [WARNINGS](#warnings)
    - [CONTENT](#content)
    - [INPUT](#input)
    - [HOW TO RUN](#how-to-run)
@@ -24,12 +24,12 @@
 <br /><br />
 ## AIM
 
-Comparative analysis of methylation in E. coli using Hifi PacBio Revio long reads.
+Quality Control (QC) for illumina short reads or Hifi PacBio Revio long reads.
 
 <br /><br />
 ## WARNINGS
 
-Can be only used for specific experimental designs performed by Loot et al.
+Can only works for files ending by .bam, .fq or .fastq.
 
 <br /><br />
 ## CONTENT
@@ -47,8 +47,7 @@ Can be only used for specific experimental designs performed by Loot et al.
 
 | Required files |
 | :--- |
-| A zipped or not hifi_reads.bam file. |
-| A reference genome fasta file. |
+| Either:<br /><ul><li>A folder, zipped or not, containing .bam, .fastq or .fq files from illumina or PacBio sequencing<br /></li><li>A single file, zipped or not, of the same nature.</ul> |
 
 
 <br />
