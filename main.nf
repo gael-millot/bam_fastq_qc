@@ -176,7 +176,16 @@ process kraken {
     """
     #!/bin/bash -ue
     echo -e "\\n\\n================\\n\\n${fastq_Nremove_ch.baseName}\\n\\n================\\n\\n" > kraken.log
-    free -h # display the memory available
+    NODE_MEM_GB=\$(awk '/MemTotal/ {print int(\$2/1024/1024)}' /proc/meminfo)
+    REQ_MEM_GB=${task.memory.toGiga()} # This is a Nextflow variable
+
+    echo "Node memory (GB): \$NODE_MEM_GB" >> kraken.log
+    echo "Requested memory (GB): \$REQ_MEM_GB" >> kraken.log
+
+    if (( NODE_MEM_GB < REQ_MEM_GB )); then
+        echo -e "\\n\\n========\\n\\nERROR IN NEXTFLOW EXECUTION\\n\\nNODE MEMORY (\$NODE_MEM_GB GB) IS LESS THAN REQUESTED (\$REQ_MEM_GB GB).\\n\\n========\\n\\n"
+        exit 1
+    fi
     kraken2 --db ${kraken_db} --threads \$(nproc) --report ${fastq_Nremove_ch.baseName}_report_kraken2.txt ${fastq_Nremove_ch} > ${fastq_Nremove_ch.baseName}_classif_kraken2.txt 2> kraken.log # 2> kraken.log because if the warnings or errors are in \${fastq_Nremove_ch.baseName}_report_kraken2.txt, multiqc will not recognize the file
     """
 }
