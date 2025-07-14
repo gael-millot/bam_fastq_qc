@@ -545,20 +545,19 @@ plot_read_length <- function(
     min_bin <- floor(min(obs$LENGTH) / 100) * 100 - 50
     max_bin <- ceiling(max(obs$LENGTH) / 100) * 100 + 50
     breaks <- seq(min_bin, max_bin, by = 100)
-    labels <- paste(head(breaks, -1), breaks[-1], sep = "-")
+    labels <- paste(head(breaks, -1), breaks[-1], sep = "_")
     labels_plot <- breaks[-length(breaks)] + 50
     obs_ini$LENGTH_BIN <- cut(obs_ini$LENGTH, breaks = breaks, include.lowest = TRUE, right = FALSE, labels = labels)
-    obs_cutoff$LENGTH_BIN <- cut(obs_cutoff$LENGTH, breaks = breaks, include.lowest = TRUE, right = FALSE, labels = labels)
-    df_counts_ini <- as.data.frame(table(obs_ini$FILE_NAME, obs_ini$LENGTH_BIN))
+    df_counts_ini <- as.data.frame(table(obs_ini$FILE_NAME, obs_ini$LENGTH_BIN), stringsAsFactors = FALSE)
     names(df_counts_ini) <- c("FILE_NAME", "LENGTH_BIN", "Count")
-    df_counts_ini <- data.frame(df_counts_ini, Length = labels_plot)
+    df_counts_ini <- data.frame(df_counts_ini, Length = sapply(X = strsplit(df_counts_ini$LENGTH_BIN, split = "_"), FUN = function(x){mean(as.numeric(x))}))
     if(nrow(obs_cutoff) == 0){ # cutoff to high
         df_counts_cutoff <- data.frame(FILE_NAME = "EMPTY_CUTOFF_FILE", LENGTH_BIN = labels, Count = 0, Length = labels_plot)
     }else{
         obs_cutoff$LENGTH_BIN <- cut(obs_cutoff$LENGTH, breaks = breaks, include.lowest = TRUE, right = FALSE, labels = labels)
-        df_counts_cutoff <- as.data.frame(table(obs_cutoff$FILE_NAME, obs_cutoff$LENGTH_BIN))
+        df_counts_cutoff <- as.data.frame(table(obs_cutoff$FILE_NAME, obs_cutoff$LENGTH_BIN), stringsAsFactors = FALSE)
         names(df_counts_cutoff) <- c("FILE_NAME", "LENGTH_BIN", "Count")
-        df_counts_cutoff <- data.frame(df_counts_cutoff, Length = labels_plot)
+        df_counts_cutoff <- data.frame(df_counts_cutoff, Length = sapply(X = strsplit(df_counts_cutoff$LENGTH_BIN, split = "_"), FUN = function(x){mean(as.numeric(x))}))
     }
 
     ############ end modifications of imported tables
@@ -574,7 +573,7 @@ plot_read_length <- function(
             y = "Count", 
             categ = "FILE_NAME", 
             geom = "geom_line", 
-            alpha = 1, 
+            alpha = 0.5, 
             title = "Whole",
             x.lim = NULL, 
             x.lab = "Read Length", 
@@ -610,12 +609,12 @@ plot_read_length <- function(
     png(filename = paste0("plot_read_length_cutoff.png"), width = 3600, height = 1800, units = "px", res = 300, bg = "white")
     if(nrow(df_counts_cutoff) > 0){
         fun_gg_scatter(
-            data1 = df_counts_ini, 
+            data1 = df_counts_cutoff, 
             x = "Length", 
             y = "Count", 
             categ = "FILE_NAME", 
             geom = "geom_line", 
-            alpha = 1, 
+            alpha = 0.5, 
             title = "Cutoff",
             x.lim = NULL, 
             x.lab = "Read Length", 

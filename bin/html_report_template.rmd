@@ -1,5 +1,5 @@
 ---
-title: '19583_loot Report'
+title: 'bam_fastq_qc Report'
 date: '`r Sys.Date()`'
 output:
     html_document:
@@ -104,6 +104,7 @@ Number of initial sequences per file:
 <span style="color:green">*ini_read_nb.tsv file in the [files](./files) folder*</span>
 ```{r, echo=FALSE, results='asis'}
 df <- read_tsv_with_dummy("ini_read_nb.tsv")
+df[[2]] <- format(df[[2]], big.mark = ",", scientific = FALSE)
 if (is.data.frame(df) && attr(df, "truncated")) {
   cat("\n**(Note: Table truncated to 10 rows. Full file available in the [files](./files) folder.)**\n\n")
 }
@@ -112,14 +113,15 @@ knitr::kable(df, format = "markdown", row.names = FALSE)
 </details>
 <br>
 
-### Reads made of N only
+### Removal of reads made of N only
 <br>
 
-Number of reads made of N only per file:
+Number of reads kept per file:
 <br><details class="inline"><summary style="color: #1a73e8; font-family: Arial, sans-serif; font-size: 1em; font-weight: bold;">view</summary>
 <span style="color:green">*n_remove_read_nb.tsv file in the [files](./files) folder*</span>
 ```{r, echo=FALSE, results='asis'}
 df <- read_tsv_with_dummy("n_remove_read_nb.tsv")
+df[[2]] <- format(df[[2]], big.mark = ",", scientific = FALSE)
 if (is.data.frame(df) && attr(df, "truncated")) {
   cat("\n**(Note: Table truncated to 10 rows. Full file available in the [files](./files) folder.)**\n\n")
 }
@@ -131,7 +133,7 @@ knitr::kable(df, format = "markdown", row.names = FALSE)
 ### Read QC
 <br>
 
-Results are published in the [fastQC1](./fastQC1) folder and are also reported in the multiqc report below.
+Results are published in the [fastQC](./fastQC) folder and are also reported in the multiqc report below.
 <br /><br />
 
 ### Contaminations
@@ -151,13 +153,14 @@ The *multiqc_report.html* file can also be found in the [multiQC](./multiQC) fol
 ### Read length cutoff
 <br>
 
-Cutoff set by the user: ```r format(params$cutoff, scientific = FALSE)```
+Cutoff set by the user: ```r format(params$cutoff, big.mark = ",", scientific = FALSE)```
 
 Number of reads kept per file:
 <br><details class="inline"><summary style="color: #1a73e8; font-family: Arial, sans-serif; font-size: 1em; font-weight: bold;">view</summary>
 <span style="color:green">*cutoff_read_nb.tsv file in the [files](./files) folder*</span>
 ```{r, echo=FALSE, results='asis'}
 df <- read_tsv_with_dummy("cutoff_read_nb.tsv")
+df[[2]] <- format(df[[2]], big.mark = ",", scientific = FALSE)
 if (is.data.frame(df) && attr(df, "truncated")) {
   cat("\n**(Note: Table truncated to 10 rows. Full file available in the [files](./files) folder.)**\n\n")
 }
@@ -167,9 +170,9 @@ knitr::kable(df, format = "markdown", row.names = FALSE)
 <br>
 
 ### Reads length
-<br><b>Line</b>: single sample.
-<br><b>X-axis</b>: Read Length.
-<br><b>Y-axis</b>: count.
+<br><b>Line</b>: Sample.
+<br><b>X-axis</b>: Read length.
+<br><b>Y-axis</b>: Count.
 <br><br><b>Rigth graph</b>: Whole sequences (after potential removal of reads made of N only).
 <br><b>Left graph</b>: Idem but keeping only the reads above the read length cutoff value.
 <br>
@@ -210,7 +213,7 @@ width_pct, png_files[i0] # add ", basename(png_files[i0])" to have the name of t
 ```
 <br><br>
 
-In the  [files](./files) folder, see also:<br /><ul><li>read_length.tsv: length of each read in bases, after N removal, and with or without cutoff<br /></li><li>read_length_freq.tsv: values of the right graph<br /></li><li>cutoff_read_length_freq.tsv: values of the left graph<br></ul>
+In the [files](./files) folder, see also:<br /><ul><li>read_length.tsv: length of each read in bases, after N removal, and with or without cutoff<br /></li><li>read_length_freq.tsv: values of the right graph<br /></li><li>cutoff_read_length_freq.tsv: values of the left graph<br></ul>
 <br><br>
 
 

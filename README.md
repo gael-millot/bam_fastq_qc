@@ -261,6 +261,11 @@ The developers & maintainers of the mentioned softwares and packages, including:
 <br /><br />
 ## WHAT'S NEW IN
 
+#### v1.1
+
+- Bugs fixed.
+
+
 #### v1.0
 
 - Everything.

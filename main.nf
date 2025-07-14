@@ -101,7 +101,7 @@ process bam2fastq{ // is indicated as bam2fastq - during nextflow running if bam
     FILENAME_INI=\$(basename -- "${bam_ch}")
     FILE_EXTENSION="\${FILENAME_INI##*.}"
     FILENAME="\${FILENAME_INI%.*}"
-    echo -e "\n\n================\n\n\${FILENAME}\n\n================\n\n" > bam2fastq.log
+    echo -e "\\n\\n================\\n\\n\${FILENAME}\\n\\n================\\n\\n" > bam2fastq.log
     bioconvert \${FILENAME}.bam \${FILENAME}.fastq |& tee -a bam2fastq.log
     """
 }
@@ -121,7 +121,7 @@ process fastqc {
     script:
     """
     #!/bin/bash -ue
-    echo -e "\n\n================\n\n${fastq.baseName}\n\n================\n\n" > fastqc.log
+    echo -e "\\n\\n================\\n\\n${fastq.baseName}\\n\\n================\\n\\n" > fastqc.log
     fastqc ${fastq} |& tee -a fastqc.log
     """
 }
@@ -175,8 +175,9 @@ process kraken {
     script:
     """
     #!/bin/bash -ue
-    echo -e "\n\n================\n\n${fastq_Nremove_ch.baseName}\n\n================\n\n" > kraken.log
-        kraken2 --db ${kraken_db} --threads \$(nproc) --report ${fastq_Nremove_ch.baseName}_report_kraken2.txt ${fastq_Nremove_ch} > ${fastq_Nremove_ch.baseName}_classif_kraken2.txt |& tee -a kraken.log
+    echo -e "\\n\\n================\\n\\n${fastq_Nremove_ch.baseName}\\n\\n================\\n\\n" > kraken.log
+    free -h # display the memory available
+    kraken2 --db ${kraken_db} --threads \$(nproc) --report ${fastq_Nremove_ch.baseName}_report_kraken2.txt ${fastq_Nremove_ch} > ${fastq_Nremove_ch.baseName}_classif_kraken2.txt 2> kraken.log # 2> kraken.log because if the warnings or errors are in \${fastq_Nremove_ch.baseName}_report_kraken2.txt, multiqc will not recognize the file
     """
 }
 
@@ -339,7 +340,7 @@ process backup {
     script:
     """
     #!/bin/bash -ue
-    echo -e "full .nextflow.log is in: ${launchDir}\nThe one in the result folder is not complete (miss the end)" > Log_info.txt
+    echo -e "full .nextflow.log is in: ${launchDir}\\nThe one in the result folder is not complete (miss the end)" > Log_info.txt
     """
 }
 
